@@ -7,23 +7,24 @@ Build and run apps, agents and AI on your data.
 
 Repository: https://github.com/codingtalkswithvishnu/databricks-on-aws
 
-The book's commercial product URL has not been supplied. This repository contains
-examples and supporting instructions; it does not contain the manuscript, cover,
-EPUB, private reviews or credentials.
+This repository contains examples and supporting instructions. The manuscript,
+cover, EPUB, private reviews and credentials remain outside it.
 
 Start at [00-start-here/README.md](00-start-here/README.md).
 Use a separate practice copy so reference updates do not overwrite your work.
 All data is synthetic and all example table resets require a disposable namespace.
 
-## Two execution boundaries
+## Choose an execution route
 
 1. **Local:** Python 3.10 or newer; the fixtures, assistant and bounded agent use
    the standard library and require no cloud credentials. The actual checked
    runtime and outcomes appear in [VALIDATION.md](VALIDATION.md).
-2. **Databricks/AWS:** administrator-approved analytics catalog, schema/table
-   creation privileges, compatible compute and required packages. Spark, MLflow,
-   bundle deployment, S3/Kinesis, search and live model calls need their own
-   authenticated checks. No successful live-cloud run is implied by local tests.
+2. **Databricks fixtures:** approved analytics catalog, schema/table privileges,
+   compatible compute and required packages. Synthetic inputs remove the need
+   for customer-owned S3 access; Spark and MLflow still execute in Databricks.
+3. **AWS/live AI extensions:** configured AWS identities, storage/connector paths,
+   search or model endpoints and usage controls. These have separate signed-in
+   checks; local success does not establish them.
 
 ## Chapter map
 
@@ -38,11 +39,11 @@ All data is synthetic and all example table resets require a disposable namespac
 | 10–12 | 06-integrations/README.md | Identity, network and catalog review records. |
 | 13 | databricks.yml | Ingest → clean → report job definition. |
 | 14–15 | 06-integrations/README.md, tickets.csv | Endpoint and classification/Genie checks. |
-| 16 | 04-assistant/assistant.py | Extractive local answer; optional paid live generation. |
+| 16 | 04-assistant/assistant.py and 05-agent/agent.py | Cited answer and one bounded read-only tool request; optional live model modes. |
 | 17 | 06-integrations/README.md | Optional provider comparison. |
 | 18–19 | tools/check_local.py and earlier checkpoints | Evidence scorecard and capstone. |
 | 20–21 | 06-integrations/README.md | Optional ownership/data-product decisions. |
-| 22 | 05-agent/agent.py | One bounded read-only tool request. |
+| 22 | 05-agent/agent.py and tools/check_local.py | Revisit the Chapter 16 agent's argument validation, refusals and enterprise access requirements. |
 | 23–24 | 06-integrations/README.md | Source qualification and incident evidence template. |
 
 ## Run locally

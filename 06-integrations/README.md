@@ -13,16 +13,24 @@ These are configuration/evidence plans, not claims of completed deployments.
   and compare the three country counts before retiring it.
 - **Glue federation:** select a direction, supported table format and read/write
   scope. Distinguish a named UC view from a demonstrated external catalog query.
-- **Kinesis:** create an isolated approved learning stream; establish producer
-  and connector identity; publish sample-data/events.jsonl; save acknowledgements;
-  ingest with a compatible finite trigger/checkpoint; inspect event IDs;
-  rerun and verify behavior; retire only this stream through its owner.
+- **Kinesis:** create an isolated approved learning stream; establish the external
+  producer and connector identity; send sample-data/events.jsonl using that
+  producer (no producer application is included here); save acknowledgements;
+  use earliest initial position for a fresh checkpoint and a compatible finite
+  trigger; check E001/E002/E003 and one minute window containing three events;
+  rerun and inspect progress; retire only this stream through its owner.
+- **Auto Loader:** use a dedicated checkpoint and a new optional branch table,
+  analytics.bronze.signups_incremental. Preserve analytics.bronze.signups for the
+  baseline cleaning/reporting path. Check six rows after one fixture file and
+  the unchanged second run with no new input.
 - **AI endpoint:** permitted exact identifier/interface, supported identity,
   a synthetic request, response contract, limits, error case and usage record.
 - **Classification:** use tickets.csv and compare all expected categories.
   Invalid output is a failure, not another category to accept silently.
-- **Genie:** curate the gold signup table, definitions and reference SQL; check
-  GB/IN/US answers and an unsupported-field question as the actual analyst.
+- **Genie:** curate the gold signup table, definitions and summary-table SQL
+  (select country/signups rather than counting country rows); grant the actual
+  analyst access to that named table. Check GB/IN/US answers and an unsupported
+  question under that identity.
 - **AI Search:** approved endpoint, exact source table analytics.support.help_articles,
   unique article_id, title/body, required source features/CDF, embedding endpoint,
   privileges, ready/synchronized state; retrieve P001 before generation.
