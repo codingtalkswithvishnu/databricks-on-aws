@@ -64,3 +64,14 @@ Cloud notebooks use Databricks source-notebook format. Import/open the complete
 project; %run paths and shared module/fixture files must stay together. Plain
 Python execution of those notebooks is not a local Spark validation.
 
+Chapter 5's notebook uses shared/spark_clean.py. It rejects conflicting duplicate
+keys instead of choosing an arbitrary winner and checks every order before
+deduplication. Blank keys, invalid dates/labels and nonfinite or negative amounts
+fail the order contract. Both datasets pass preflight before either table is
+written; the two writes are separate Delta commits, not one atomic transaction.
+
+With compatible Spark, run `python tools/check_spark.py`, or open the complete
+project in Databricks and run `%run ../tools/check_spark` from a numbered notebook
+folder. These checks exercise the actual cleaning functions with synthetic
+DataFrames and create no tables. Their execution status is in VALIDATION.md.
+

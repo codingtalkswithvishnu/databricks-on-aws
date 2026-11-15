@@ -1,9 +1,16 @@
 """Offline contract and boundary checks. No AWS/Databricks credentials required."""
 import ast
+import http.client
+import io
 import json
+import os
 import sys
 import unittest
+import urllib.error
+import urllib.request
+from email.message import Message
 from pathlib import Path
+from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "shared"))
 import cedar
@@ -86,6 +93,111 @@ class ContractChecks(unittest.TestCase):
         def forbidden(_):
             raise AssertionError("No evidence should cause no model call")
         self.assertEqual(cedar.answer("acquisition plans",forbidden)["mode"],"unanswered")
+
+    def test_read_questions_with_action_words_are_allowed(self):
+        for question in ["What is the billing email?", "Where should I send a billing question?"]:
+            with self.subTest(question=question):
+                result = cedar.agent(question)
+                self.assertEqual(result["status"], "completed")
+                self.assertIn("P003", result["citations"])
+        for question in ["Please delete records", "Could you please email customers"]:
+            self.assertEqual(cedar.agent(question)["status"], "refused")
+
+    def test_ambiguous_or_nonstandard_model_json_is_rejected(self):
+        replies = [
+            '{"tool":"delete_data","tool":"signup_summary","arguments":{}}',
+            '{"tool":"signup_summary","arguments":{},"arguments":{}}',
+            '{"tool":"search_policies","arguments":{"query":"return","query":"billing"}}',
+            '{"tool":"signup_summary","arguments":NaN}',
+            "[" * 2000 + "]" * 2000,
+            "x" * 20001, None,
+        ]
+        for reply in replies:
+            with self.subTest(reply_type=type(reply).__name__):
+                with self.assertRaises(ValueError):
+                    cedar.agent("show a summary", lambda _, value=reply: value)
+        with self.assertRaises(ValueError):
+            cedar.answer("return window", lambda _: (
+                '{"answer":"unsupported","answer":"30 days","citations":["P001"]}'))
+
+class AdapterChecks(unittest.TestCase):
+    def setUp(self):
+        self.environment = patch.dict(os.environ, {
+            "DATABRICKS_HOST": "https://unit.cloud.databricks.com",
+            "DATABRICKS_MODEL_ENDPOINT": "unit-model", "DATABRICKS_TOKEN": "TEST_ONLY"})
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
+    def response(self, body):
+        return patch.object(cedar.MODEL_OPENER, "open", return_value=io.BytesIO(body))
+
+    def test_chat_request_contract_and_valid_response(self):
+        messages = [{"role":"user", "content":"unit question"}]
+        with self.response(b'{"choices":[{"message":{"content":"unit answer"}}]}') as opened:
+            self.assertEqual(cedar.chat(messages), "unit answer")
+        request = opened.call_args.args[0]
+        self.assertEqual(request.full_url,
+                         "https://unit.cloud.databricks.com/serving-endpoints/unit-model/invocations")
+        self.assertEqual(request.get_header("Authorization"), "Bearer TEST_ONLY")
+        self.assertEqual(json.loads(request.data), {
+            "messages":messages, "max_tokens":350, "temperature":0})
+        self.assertEqual(opened.call_args.kwargs["timeout"], 20)
+
+    def test_invalid_configuration_never_sends_request_or_prints_token(self):
+        configurations = [
+            {"DATABRICKS_TOKEN":"TEST_ONLY\n"},
+            {"DATABRICKS_TOKEN":"TEST_ONLY secret"},
+            {"DATABRICKS_TOKEN":""},
+            {"DATABRICKS_HOST":"http://unit.cloud.databricks.com"},
+            {"DATABRICKS_HOST":"https://unit.cloud.databricks.com.attacker.example"},
+            {"DATABRICKS_HOST":"https://unit.cloud.databricks.com:bad"},
+            {"DATABRICKS_HOST":"https://unit.cloud.databricks.com?token=TEST_ONLY"},
+            {"DATABRICKS_MODEL_ENDPOINT":"../other"},
+        ]
+        for config in configurations:
+            with self.subTest(keys=list(config)), patch.dict(os.environ, config):
+                with patch.object(cedar.MODEL_OPENER, "open") as opened:
+                    with self.assertRaises(ValueError) as error:
+                        cedar.chat([])
+                    self.assertNotIn("TEST_ONLY", str(error.exception))
+                    opened.assert_not_called()
+
+    def test_redirects_fail_without_forwarding_authorization(self):
+        handler = next(h for h in cedar.MODEL_OPENER.handlers if isinstance(h, cedar.NoRedirect))
+        request = urllib.request.Request("https://unit.cloud.databricks.com/path", data=b"{}",
+                                         headers={"Authorization":"Bearer TEST_ONLY"})
+        for code in [301, 302, 303, 307, 308]:
+            headers = Message()
+            headers["Location"] = "https://unrelated.example/path"
+            with self.subTest(code=code), self.assertRaises(urllib.error.HTTPError) as error:
+                getattr(handler, "http_error_" + str(code))(
+                    request, io.BytesIO(), code, "redirect", headers)
+            error.exception.close()
+
+    def test_transport_failures_are_sanitized(self):
+        failures = [
+            urllib.error.HTTPError("https://unit.cloud.databricks.com", 403,
+                                   "TEST_ONLY", {}, io.BytesIO(b"TEST_ONLY")),
+            urllib.error.URLError("TEST_ONLY"), TimeoutError("TEST_ONLY"),
+            ConnectionResetError("TEST_ONLY"), http.client.IncompleteRead(b"TEST_ONLY"),
+        ]
+        for failure in failures:
+            with self.subTest(kind=type(failure).__name__):
+                with patch.object(cedar.MODEL_OPENER, "open", side_effect=failure):
+                    with self.assertRaises(RuntimeError) as error:
+                        cedar.chat([])
+                    self.assertNotIn("TEST_ONLY", str(error.exception))
+
+    def test_malformed_and_oversized_responses_fail_cleanly(self):
+        bodies = [b"not JSON", b"null", b"[]", b'{"choices":[]}',
+                  b'{"choices":[{"message":{"content":null}}]}',
+                  b'{"choices":[{"message":{"content":" "}}]}', b"\xff",
+                  json.dumps({"choices":[{"message":{"content":"x" * 20001}}]}).encode(),
+                  b"x" * 1_000_001]
+        for body in bodies:
+            with self.subTest(length=len(body)), self.response(body):
+                with self.assertRaises(ValueError):
+                    cedar.chat([])
 
     def test_python_sources_parse(self):
         for file in ROOT.rglob("*.py"):

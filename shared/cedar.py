@@ -1,6 +1,7 @@
 """Synthetic Cedar Retail contracts and bounded learning adapters. Python 3.10+."""
 import csv
 import datetime as dt
+import http.client
 import json
 import os
 import re
@@ -13,6 +14,37 @@ ROOT = Path(__file__).resolve().parents[1]
 NOT_FOUND = "Not found in approved policies"
 STOP = {"a", "an", "the", "is", "are", "what", "how", "of", "to", "in",
         "for", "our", "and", "can", "i", "it", "my", "does", "do"}
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Keep the authorization header on the configured endpoint only."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(req.full_url, code, "Redirect refused", headers, fp)
+
+    # Explicitly cover 308 on the Python 3.10 minimum as well.
+    http_error_308 = urllib.request.HTTPRedirectHandler.http_error_307
+
+MODEL_OPENER = urllib.request.build_opener(NoRedirect())
+
+def model_json(value):
+    """Reject oversized, ambiguous or nonstandard model-generated JSON."""
+    def unique_object(pairs):
+        result = {}
+        for key, item in pairs:
+            if key in result:
+                raise ValueError("Duplicate JSON key")
+            result[key] = item
+        return result
+
+    def invalid_constant(_):
+        raise ValueError("Nonstandard JSON constant")
+
+    if not isinstance(value, str) or len(value) > 20000:
+        raise ValueError("Unsupported model response")
+    try:
+        return json.loads(value, object_pairs_hook=unique_object,
+                          parse_constant=invalid_constant)
+    except (ValueError, RecursionError):
+        raise ValueError("Model must return unambiguous valid JSON") from None
 
 def records(name):
     with (ROOT / "sample-data" / name).open(encoding="utf-8", newline="") as stream:
@@ -75,13 +107,18 @@ def chat(messages):
     host = os.environ.get("DATABRICKS_HOST", "").rstrip("/")
     endpoint = os.environ.get("DATABRICKS_MODEL_ENDPOINT", "")
     token = os.environ.get("DATABRICKS_TOKEN", "")
-    parsed = urllib.parse.urlsplit(host)
+    try:
+        parsed = urllib.parse.urlsplit(host)
+        port = parsed.port
+    except ValueError:
+        raise ValueError("Invalid workspace host") from None
     if (parsed.scheme != "https" or not parsed.hostname
             or not parsed.hostname.endswith(".cloud.databricks.com")
             or parsed.username or parsed.password or parsed.query or parsed.fragment
-            or parsed.path or parsed.port not in (None, 443)):
+            or parsed.path or port not in (None, 443)):
         raise ValueError("Use the approved https://...cloud.databricks.com workspace host")
-    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,200}", endpoint) or not token:
+    if (not re.fullmatch(r"[A-Za-z0-9_.-]{1,200}", endpoint)
+            or not re.fullmatch(r"[\x21-\x7e]{1,8192}", token)):
         raise ValueError("Set approved endpoint and learning authentication environment values")
     url = host + "/serving-endpoints/" + urllib.parse.quote(endpoint, safe="") + "/invocations"
     payload = json.dumps({"messages": messages, "max_tokens": 350,
@@ -89,19 +126,24 @@ def chat(messages):
     request = urllib.request.Request(url, data=payload, headers={
         "Authorization": "Bearer " + token, "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with MODEL_OPENER.open(request, timeout=20) as response:
             body = response.read(1_000_001)
         if len(body) > 1_000_000:
             raise ValueError("Model response exceeded the learning limit")
+    except urllib.error.HTTPError as error:
+        code = error.code
+        error.close()
+        raise RuntimeError("Model request failed with HTTP " + str(code)) from None
+    except (urllib.error.URLError, OSError, http.client.HTTPException):
+        raise RuntimeError("Model request failed or timed out") from None
+    try:
         data = json.loads(body)
         text = data["choices"][0]["message"]["content"]
-        if not isinstance(text, str) or len(text) > 20000:
+        if not isinstance(text, str) or not text.strip() or len(text) > 20000:
             raise ValueError("Unsupported model response")
         return text
-    except urllib.error.HTTPError as error:
-        raise RuntimeError("Model request failed with HTTP " + str(error.code)) from None
-    except (urllib.error.URLError, TimeoutError):
-        raise RuntimeError("Model request failed or timed out") from None
+    except (ValueError, KeyError, IndexError, TypeError, RecursionError):
+        raise ValueError("Unsupported model response") from None
 
 def answer(question, model_call=None):
     question = validate_question(question)
@@ -119,7 +161,7 @@ def answer(question, model_call=None):
         '(array of supplied article_id strings). If unsupported, answer exactly "'
         + NOT_FOUND + '" with no citations.\n'
         + json.dumps({"question": question, "documents": documents}))
-    parsed = json.loads(model_call([{"role": "user", "content": prompt}]))
+    parsed = model_json(model_call([{"role": "user", "content": prompt}]))
     if not isinstance(parsed, dict) or set(parsed) != {"answer", "citations"}:
         raise ValueError("Invalid answer object")
     if not isinstance(parsed["answer"], str) or not parsed["answer"].strip():
@@ -158,7 +200,10 @@ def execute_plan(plan):
 
 def agent(question, model_call=None):
     question = validate_question(question)
-    if re.search(r"\b(delete|update|send|email|cancel|overwrite)\b", question.lower()):
+    # A convenience refusal for direct action requests. The read-only dispatcher
+    # remains the boundary even when this heuristic does not recognize a phrase.
+    if re.match(r"^(?:(?:can|could|would) you\s+)?(?:please\s+)?"
+                r"(?:delete|update|send|email|cancel|overwrite)\b", question.lower()):
         return {"status": "refused", "reason": "This learning agent permits read-only questions"}
     if model_call is None:
         if "signup" in question.lower():
@@ -172,7 +217,7 @@ def agent(question, model_call=None):
             'Only tools: signup_summary with {}, or search_policies with {"query": "..."} '
             '(query at most 300 characters). No writes, arbitrary SQL, code or extra keys. '
             'Choose one read-only tool for this question:\n' + question)
-        plan = json.loads(model_call([{"role": "user", "content": instruction}]))
+        plan = model_json(model_call([{"role": "user", "content": instruction}]))
         mode = "live-model-plan"
     return {"status": "completed", "mode": mode, **execute_plan(plan)}
 
