@@ -1,0 +1,18 @@
+[
+  {
+    "article_id": "P001",
+    "title": "Return window",
+    "body": "Cedar Retail accepts return requests within 30 days of delivery. Keep the order receipt."
+  },
+  {
+    "article_id": "P002",
+    "title": "Shipping times",
+    "body": "Standard shipping takes 3 to 5 business days after dispatch."
+  },
+  {
+    "article_id": "P003",
+    "title": "Billing support",
+    "body": "Contact the billing team with the order ID to request an invoice correction."
+  }
+]
+

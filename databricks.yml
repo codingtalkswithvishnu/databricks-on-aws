@@ -1,0 +1,35 @@
+bundle:
+  name: cedar-retail-learning
+variables:
+  cluster_id:
+    description: Approved learning cluster ID
+resources:
+  jobs:
+    retail_refresh:
+      name: cedar-retail-learning
+      tasks:
+        - task_key: ingest
+          existing_cluster_id: ${var.cluster_id}
+          notebook_task:
+            notebook_path: ./01-lakehouse/01_ingest.py
+        - task_key: clean
+          depends_on:
+            - task_key: ingest
+          existing_cluster_id: ${var.cluster_id}
+          notebook_task:
+            notebook_path: ./01-lakehouse/02_clean.py
+        - task_key: report
+          depends_on:
+            - task_key: clean
+          existing_cluster_id: ${var.cluster_id}
+          notebook_task:
+            notebook_path: ./02-analytics/03_report.py
+targets:
+  dev:
+    default: true
+    mode: development
+sync:
+  include:
+    - shared/**
+    - sample-data/**
+    - 00-start-here/**

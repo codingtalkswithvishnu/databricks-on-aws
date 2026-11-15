@@ -1,0 +1,8 @@
+email,signup_date,country
+alex@example.test,2026-01-01,IN
+blair@example.test,2026-01-02,US
+alex@example.test,2026-01-01,IN
+,2026-01-03,IN
+casey@example.test,invalid-date,IN
+drew@example.test,2026-01-04,GB
+
