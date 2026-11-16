@@ -343,4 +343,3 @@ def agent(question, model_call=None):
         plan = model_json(model_call([{"role": "user", "content": instruction}]))
         mode = "live-model-plan"
     return {"status": "completed", "mode": mode, **execute_plan(plan)}
-
