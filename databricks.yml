@@ -1,12 +1,12 @@
 bundle:
-  name: cedar-retail-learning
+  name: northstar-healthcare-learning
 variables:
   cluster_id:
-    description: Approved learning cluster ID
+    description: Approved learning cluster with compatible Spark ML and MLflow
 resources:
   jobs:
-    retail_refresh:
-      name: cedar-retail-learning
+    healthcare_refresh:
+      name: northstar-healthcare-learning
       tasks:
         - task_key: ingest
           existing_cluster_id: ${var.cluster_id}
@@ -24,6 +24,12 @@ resources:
           existing_cluster_id: ${var.cluster_id}
           notebook_task:
             notebook_path: ./02-analytics/03_report.py
+        - task_key: predict
+          depends_on:
+            - task_key: report
+          existing_cluster_id: ${var.cluster_id}
+          notebook_task:
+            notebook_path: ./03-prediction/04_train_score.py
 targets:
   dev:
     default: true

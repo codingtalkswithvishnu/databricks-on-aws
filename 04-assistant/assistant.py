@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "shared"))
-from cedar import answer, chat
+from healthcare import answer, chat
 
 def main():
     parser = argparse.ArgumentParser()

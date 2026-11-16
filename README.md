@@ -1,77 +1,75 @@
 # Databricks on AWS
 
 Companion examples for **Databricks on AWS: From Raw Data to Governed AI and
-Intelligent Agents** by **Vishnu VG**.
+Intelligent Agents** by **Vishnu VG**. Build and run apps, agents and AI on your data.
 
-Build and run apps, agents and AI on your data.
+The enterprise example follows **Northstar Health Network**, a fictional
+multi-facility outpatient provider. All records and policies are invented.
+The project concerns appointment operations and administrative support.
 
-Repository: https://github.com/codingtalkswithvishnu/databricks-on-aws
+Start at [00-start-here](00-start-here/README.md). Preserve the complete project
+and use a separate practice branch at the revision pinned in your book.
+The manuscript, cover, EPUB, private reviews and credentials are outside this repository.
 
-This repository contains examples and supporting instructions. The manuscript,
-cover, EPUB, private reviews and credentials remain outside it.
+## Follow the main pipeline
 
-Start at [00-start-here/README.md](00-start-here/README.md).
-Use a separate practice copy so reference updates do not overwrite your work.
-All data is synthetic and all example table resets require a disposable namespace.
-
-## Choose an execution route
-
-1. **Local:** Python 3.10 or newer; the fixtures, assistant and bounded agent use
-   the standard library and require no cloud credentials. The actual checked
-   runtime and outcomes appear in [VALIDATION.md](VALIDATION.md).
-2. **Databricks fixtures:** approved analytics catalog, schema/table privileges,
-   compatible compute and required packages. Synthetic inputs remove the need
-   for customer-owned S3 access; Spark and MLflow still execute in Databricks.
-3. **AWS/live AI extensions:** configured AWS identities, storage/connector paths,
-   search or model endpoints and usage controls. These have separate signed-in
-   checks; local success does not establish them.
-
-## Chapter map
-
-| Chapters | Folder/file | Output |
+| Chapters | Reference | Accepted result |
 | --- | --- | --- |
-| 1–3 | 00-start-here and sample-data | Brief, fixture contract, environment and compute check. |
-| 4 | 01-lakehouse/01_ingest.py | Bronze inputs plus ticket/document fixtures. |
-| 5 | 01-lakehouse/02_clean.py | Three valid signups and forty typed orders. |
-| 6–7 | 02-analytics/03_report.py | Stable view and GB/IN/US counts of one each. |
-| 8 | 06-integrations/README.md, events.jsonl | Optional isolated-stream evidence plan. |
-| 9 | 03-prediction/04_train_score.py | Twenty feature rows, 16/4 split and actual scored table. |
-| 10–12 | 06-integrations/README.md | Identity, network and catalog review records. |
-| 13 | databricks.yml | Ingest → clean → report job definition. |
-| 14–15 | 06-integrations/README.md, tickets.csv | Endpoint and classification/Genie checks. |
-| 16 | 04-assistant/assistant.py and 05-agent/agent.py | Cited answer and one bounded read-only tool request; optional live model modes. |
-| 17 | 06-integrations/README.md | Optional provider comparison. |
-| 18–19 | tools/check_local.py and earlier checkpoints | Evidence scorecard and capstone. |
-| 20–21 | 06-integrations/README.md | Optional ownership/data-product decisions. |
-| 22 | 05-agent/agent.py and tools/check_local.py | Revisit the Chapter 16 agent's argument validation, refusals and enterprise access requirements. |
-| 23–24 | 06-integrations/README.md | Source qualification and incident evidence template. |
+| 1–3 | 00-start-here, sample-data | Requirements, explicit schemas, dates and approved environment. |
+| 4 | 01-lakehouse/01_ingest.py | 6 raw appointments, 40 historical visits, 20 later outcomes; 3 tickets and 3 selected policies. |
+| 5 | 01-lakehouse/02_clean.py | 3 accepted appointments, 2 rejected arrivals, 1 identical duplicate; typed history/outcomes. |
+| 6–7 | 02-analytics/03_report.py | Stable operations.appointments view and FAC01/FAC02/FAC03 counts of 1 each. |
+| 8 | 06-integrations/README.md, events.jsonl | Optional isolated three-event Kinesis exercise. |
+| 9 | 03-prediction/04_train_score.py | 20 dated feature/label rows, 16/4 split, observed metric/run reference, 3 March scores and human review queue. |
+| 10–12 | 06-integrations/README.md | Identity, network, storage and object-access evidence. |
+| 13 | databricks.yml, .github/workflows/local-checks.yml | Four-task ingest → clean → report → predict job and separate local CI. |
+| 14–15 | 06-integrations/05_classify_tickets.py, 02_genie_conversation.py | Optional materialized classification and aggregate-only Genie conversation. |
+| 16 | 04-assistant, 05-agent, 06-integrations/03_managed_policy_search.py | Versioned policy evidence, bounded read tools, optional managed retrieval. |
+| 17 | 06-integrations/04_compare_providers.py | Same fixed cases through two explicitly selected compatible model endpoints. |
+| 18–19 | Earlier stages, tools/check_local.py, tools/check_spark.py | Evidence scorecard and reproducible healthcare capstone. |
+| 20–24 | 06-integrations/README.md, 05-agent | Ownership, products, agent limits, qualified case studies and recovery evidence. |
+| Appendix D | 01-lakehouse/03_incremental_updates.py, 04_fhir_mapping.py | Separate versioned-MERGE and nested R4-shaped source demonstrations. |
 
-## Run locally
+All main table names belong to analytics. The gold facility report is a fixed
+March snapshot with two columns, not an appendable multi-period time series.
+Patient-level scores have a different access contract from facility aggregates.
 
-From this repository root:
+## Run the local route
 
-~~~shell
-python tools/check_local.py
-python 04-assistant/assistant.py --question "What is the return window?"
-python 05-agent/agent.py --question "How many valid signups are there?"
-~~~
+Python 3.10+; standard library only for these commands, from the repository root:
 
-The assistant defaults to lexical retrieval and an extractive answer, not an LLM.
-The agent defaults to a simulated plan, not a model's reasoning. --live explicitly
-requests a model and can incur charges; read the folder README first.
+```shell
+python -W error tools/check_local.py
+python 04-assistant/assistant.py --question "How much notice is needed for appointment rescheduling?"
+python 04-assistant/assistant.py --question "What is the parking fee?"
+python 05-agent/agent.py --question "How many accepted appointments are there by facility?"
+python 05-agent/agent.py --question "Cancel the patient appointment"
+```
 
-Cloud notebooks use Databricks source-notebook format. Import/open the complete
-project; %run paths and shared module/fixture files must stay together. Plain
-Python execution of those notebooks is not a local Spark validation.
+The assistant defaults to lexical retrieval and an extractive answer. The agent
+defaults to a simulated plan. `--live` replaces generation/planning with a model
+request and can incur charges; its tools still use local fixtures. Read the folder
+instructions before selecting that route. There is no patient lookup, contact,
+appointment-write tool or clinical model in this application.
 
-Chapter 5's notebook uses shared/spark_clean.py. It rejects conflicting duplicate
-keys instead of choosing an arbitrary winner and checks every order before
-deduplication. Blank keys, invalid dates/labels and nonfinite or negative amounts
-fail the order contract. Both datasets pass preflight before either table is
-written; the two writes are separate Delta commits, not one atomic transaction.
+## Run the Spark and cloud routes separately
 
-With compatible Spark, run `python tools/check_spark.py`, or open the complete
-project in Databricks and run `%run ../tools/check_spark` from a numbered notebook
-folder. These checks exercise the actual cleaning functions with synthetic
-DataFrames and create no tables. Their execution status is in VALIDATION.md.
+With compatible PySpark and Java, `python tools/check_spark.py` exercises actual
+DataFrame transformations without table writes. See [VALIDATION.md](VALIDATION.md)
+for the checked local runtimes and 31 local / 14 Spark results.
 
+Cloud source notebooks require an approved disposable analytics catalog,
+schema/table privileges, compatible Spark ML/MLflow compute and the complete
+project. Open/import the project together; `%run` and shared module paths matter.
+The four-task bundle uses an explicit approved existing cluster. From a signed-in
+CLI environment, validate, deploy and run with your approved cluster variable;
+the book explains each evidence boundary.
+
+Quality preflight checks all inputs before the four output writes. Those writes
+are separate Delta commits. A partial failure needs reconciliation rather than
+an assumption of one transaction. Full fixture resets overwrite only the agreed
+disposable tables; they are not an operational incremental ingestion strategy.
+
+Optional model lifecycle, feature-table and AutoML recipes are in 03-prediction/
+05–07. Optional integrations have separate prerequisites and are excluded from
+the default job. No signed-in Databricks/AWS execution is claimed here.

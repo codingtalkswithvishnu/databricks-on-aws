@@ -1,37 +1,53 @@
-# Companion validation record
+# Healthcare companion validation — 16 November 2026
 
-Date: 16 November 2026.
+## Observed local results
 
-- Local runtime: CPython 3.14.10, Windows.
-- Command: python tools/check_local.py, from the companion root.
-- Observed result: 17 tests passed, including a run with Python warnings treated as errors.
-- Checks: six-row signup contract and expected counts; conflicting duplicate refusal;
-  order-key uniqueness and two-class 16/4 split; supported/unsupported policy questions;
-  source-ID validation with a fake model; allowlisted agent tools; malformed,
-  unknown and extra-argument plans; no model call when no source evidence exists;
-  parsing of the supplied Python files; read questions containing action words;
-  duplicate-key, nested, oversized and nonstandard model JSON; approved-host and
-  token validation; bounded HTTP request shape; redirect refusal; sanitized
-  transport errors; malformed and oversized endpoint responses.
-- Default assistant mode: lexical retrieval plus an extractive answer.
-- Default agent mode: simulated plan, then one read-only dispatch.
-- Fake-model checks validate response/plan handling, not live model quality.
-- Standard-library local code has no third-party package dependencies.
-- The HTTP checks use fake responses and TEST_ONLY credentials, with no live calls.
-- Spark-specific regression suite: tools/check_spark.py, five test methods with
-  invalid-value subcases. Added and syntax-checked, not executed in Spark here.
-  It covers fixture outputs, identical/conflicting duplicates in both input
-  orders, null/blank keys, bad dates/labels and NaN/infinite/negative amounts.
-  It calls the same shared/spark_clean.py functions as the cleaning notebook.
+- **31 standard-library checks passed**, CPython 3.14.10, Windows, command
+  `python -W error tools/check_local.py`. Covers fixture reconciliation, conflicts,
+  date/cohort boundaries, policy versions, source retention, agent dispatch,
+  fake-model/HTTP error handling, redirects, bounded response parsing, Genie/search
+  response adapters and parsing every repository Python source.
+- **14 actual Spark DataFrame checks passed**, CPython 3.12.10, PySpark 4.0.1,
+  Py4J 0.10.9.9, Java 21.0.13 on Windows; local[2], 2 shuffle partitions, UI disabled.
+  Command `python tools/check_spark.py`. Runtime 89.458 seconds in the final run.
+  Covers cleaning/rejections/conflicts, historical values and timing, label/cohort
+  contracts, Spark/offline feature agreement, versioned-update preparation/target
+  conflicts, and nested healthcare mapping/ambiguity.
 
-Not executed: Spark transformations, Spark ML fitting, MLflow runs, CLI bundle
-validation/deployment, AWS access, Kinesis producer/consumer, live Databricks
-model calls, Genie, AI Search, provider changes, and actual account permissions
-or networking. These require the approved environment described in the book.
-The runtime/access-mode and package versions for those checks remain to be selected
-and recorded by the operator.
+Spark fixtures are literal JVM DataFrames created through Spark SQL functions.
+They exercise actual transformations; they avoid Python RDD worker dependencies
+in this Windows embedded-Python setup. No vendor package was patched. This local
+Spark version is the observed test environment, not a selected Databricks Runtime.
 
-Repository: https://github.com/codingtalkswithvishnu/databricks-on-aws
-The local source is prepared separately from the commercial book. Git publication
-status is recorded by the author's final repository handoff.
+The GitHub workflow separately runs the local suite on Python 3.10 and 3.14 on
+Ubuntu. Its actual run status is visible in GitHub Actions; this document does not
+infer success from the workflow definition.
 
+## Expected contracts
+
+6 appointment arrivals = 2 rejected + 1 identical valid duplicate + 3 accepted.
+FAC01/FAC02/FAC03 each count 1. History has 40 prior visits; later labels cover
+20 patients. Features precede 1 February; outcomes are scheduled/observed on
+15/16 February; the held-out patient split is 16/4. The model notebook must score
+3 accepted March appointments and retain cutoff/run reference. No model score or
+AUC was produced by the local checks.
+
+The isolated MERGE demo should finish with 4 keys, newer A001/FAC02/v2 and added
+A007/v1, and preserve state on repeat/stale input. Only preparation/target checks
+were executed locally, not the Delta MERGE. The nested mapper reproduces the
+accepted CSV rows; its Delta writes were not executed.
+
+## Not executed
+
+No signed-in Databricks/AWS authentication, actual S3 read, UC access test, Delta
+table write/MERGE/history operation, Spark ML fit, MLflow server/artifact/model
+registry call, feature-store/AutoML call, CLI bundle validate/deploy/run, paid model
+request, AI Function, managed search synchronization, Genie query, Redshift/Kinesis
+connection, network-path validation, actual cost measurement or resource retirement
+was performed. Standard-library model/HTTP checks use fakes; Genie/search checks
+exercise pure response adapters, not their services.
+
+The bundle's ingest → clean → report → predict tasks are a reviewed definition.
+The optional cloud notebooks need configured owners, resources, package versions
+and actual result checks. The 20-patient synthetic fixture, three policies and
+three tickets establish teaching contracts, not clinical or production quality.

@@ -1,0 +1,5 @@
+appointment_id,patient_id,scheduled_date,facility_id,source_version
+A001,P001,2026-03-10,FAC02,2
+A001,P001,2026-03-10,FAC02,2
+A007,P007,2026-03-12,FAC01,1
+A001,P001,2026-03-10,FAC01,1

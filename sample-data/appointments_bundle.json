@@ -1,0 +1,143 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "2026-03-10T09:00:00Z",
+        "end": "2026-03-10T09:30:00Z",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P001"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC01"
+            },
+            "status": "accepted"
+          }
+        ],
+        "id": "A001"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "2026-03-10T09:00:00Z",
+        "end": "2026-03-10T09:30:00Z",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P002"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC02"
+            },
+            "status": "accepted"
+          }
+        ],
+        "id": "A002"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "2026-03-10T09:00:00Z",
+        "end": "2026-03-10T09:30:00Z",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P001"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC01"
+            },
+            "status": "accepted"
+          }
+        ],
+        "id": "A001"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "2026-03-12T09:00:00Z",
+        "end": "2026-03-12T09:30:00Z",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P003"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC01"
+            },
+            "status": "accepted"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "invalid-date",
+        "end": "invalid-date",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P005"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC02"
+            },
+            "status": "accepted"
+          }
+        ],
+        "id": "A005"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Appointment",
+        "status": "booked",
+        "start": "2026-03-10T09:00:00Z",
+        "end": "2026-03-10T09:30:00Z",
+        "participant": [
+          {
+            "actor": {
+              "reference": "Patient/P006"
+            },
+            "status": "accepted"
+          },
+          {
+            "actor": {
+              "reference": "Location/FAC03"
+            },
+            "status": "accepted"
+          }
+        ],
+        "id": "A006"
+      }
+    }
+  ]
+}

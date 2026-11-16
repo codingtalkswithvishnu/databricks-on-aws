@@ -1,0 +1,7 @@
+appointment_id,patient_id,scheduled_date,facility_id
+A001,P001,2026-03-10,FAC01
+A002,P002,2026-03-10,FAC02
+A001,P001,2026-03-10,FAC01
+,P003,2026-03-12,FAC01
+A005,P005,invalid-date,FAC02
+A006,P006,2026-03-10,FAC03

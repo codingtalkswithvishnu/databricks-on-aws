@@ -1,22 +1,33 @@
-# A bounded read-only agent exercise
+# One plan and one permitted read
 
-Local mode simulates one tool plan so dispatcher behavior can be checked without
-a model. --live asks the approved model for one JSON plan. Only signup_summary
-with no arguments, or search_policies with one bounded query, is accepted.
+Run from the repository root:
 
-There is one model-planning call and at most one tool call, no loop, no shell,
-no arbitrary SQL, no write tool, and no generated final interpretation after
-the tool result. Wrong types, extra arguments, duplicate JSON keys and unknown tools fail closed.
-The returned tool evidence is visible in JSON. This does not establish planning
-quality; a model can still choose an irrelevant permitted read tool.
+```shell
+python 05-agent/agent.py --question "How many accepted appointments are there by facility?"
+python 05-agent/agent.py --question "How much notice is needed for appointment rescheduling?"
+python 05-agent/agent.py --question "Cancel the patient appointment"
+```
 
-A small phrase check refuses direct requests such as "Delete customer records."
-It allows read questions such as "What is the billing email?" This convenience
-check is not the access boundary: every plan must still pass the exact dispatcher
-contract, and the dispatcher exposes no write operation.
+Default planning is simulated. `--live` requests one model-generated plan using
+the same bounded serving adapter described in [04-assistant](../04-assistant/README.md).
+The dispatcher still validates the plan and executes at most one local tool.
 
-Use the same live environment settings as the assistant. For real data, add
-user/workload identity design, actual permissions, audit, usage controls and
-evaluation before deployment. Synthetic fixtures deliberately avoid implying
-that app access grants access to arbitrary enterprise data.
+| Tool | Arguments | Result |
+| --- | --- | --- |
+| appointment_summary | Exactly an empty object. | Accepted local fixture counts: FAC01/FAC02/FAC03 = 1. |
+| search_policies | Exactly query, a bounded string. | At most two approved/effective policy documents with source metadata. |
 
+Unknown tools, extra/wrong arguments, duplicate JSON keys and malformed plans
+fail before tool execution. The cancellation request is refused. Limited phrase
+guards are demonstrations; hard dispatch limits still expose no write, arbitrary
+SQL, shell, patient lookup, score disclosure, contact or clinical action.
+
+The rescheduling-notice question must route to policy evidence rather than counts.
+Tests include permitted reads, clinical/write refusals, malformed/unknown plans
+and fake-model errors. Neither local nor live planning queries a Databricks table;
+the summary recalculates from the same appointments.csv as the pipeline.
+
+For an actual application, separately design caller/workload authorization,
+auditing, source access, content evaluation, rate/time/cost limits, recovery and
+human release authority. The repository deploys no MCP server, multi-agent
+orchestrator or clinical workflow. These are distinct extension decisions.

@@ -1,4 +1,4 @@
-{"event_id":"E001","customer_id":"C001","event_type":"page_view","event_time":"2026-01-05T10:00:01Z"}
-{"event_id":"E002","customer_id":"C002","event_type":"page_view","event_time":"2026-01-05T10:00:02Z"}
-{"event_id":"E003","customer_id":"C003","event_type":"page_view","event_time":"2026-01-05T10:00:03Z"}
+{"event_id":"E001","appointment_id":"A001","facility_id":"FAC01","event_type":"check_in","event_time":"2026-03-10T10:00:01Z"}
+{"event_id":"E002","appointment_id":"A002","facility_id":"FAC02","event_type":"check_in","event_time":"2026-03-10T10:00:02Z"}
+{"event_id":"E003","appointment_id":"A006","facility_id":"FAC03","event_type":"check_in","event_time":"2026-03-10T10:00:03Z"}
 

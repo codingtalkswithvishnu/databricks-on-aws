@@ -1,5 +1,5 @@
 ticket_id,message,expected_category
-T001,Please correct the amount on my invoice,billing
-T002,The app crashes when I sign in,technical
-T003,Where can I read your company history,other
+T001,Please correct the amount on my appointment invoice,billing
+T002,The patient portal crashes when I sign in,technical
+T003,Where can I read the network annual report,other
 

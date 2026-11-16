@@ -1,18 +1,30 @@
 [
   {
     "article_id": "P001",
-    "title": "Return window",
-    "body": "Cedar Retail accepts return requests within 30 days of delivery. Keep the order receipt."
+    "title": "Appointment rescheduling",
+    "version": "1.0",
+    "status": "approved",
+    "effective_from": "2026-01-01",
+    "owner": "scheduling_operations",
+    "body": "Northstar Health Network asks patients to request routine appointment rescheduling at least 24 hours before the scheduled time. Contact the scheduling team with the appointment reference."
   },
   {
     "article_id": "P002",
-    "title": "Shipping times",
-    "body": "Standard shipping takes 3 to 5 business days after dispatch."
+    "title": "Referral intake",
+    "version": "1.0",
+    "status": "approved",
+    "effective_from": "2026-01-01",
+    "owner": "referral_operations",
+    "body": "For an administrative question about a pending referral, contact the referral intake team with the referral reference. The intake team confirms the required booking documents."
   },
   {
     "article_id": "P003",
     "title": "Billing support",
-    "body": "Contact the billing team with the order ID to request an invoice correction."
+    "version": "1.0",
+    "status": "approved",
+    "effective_from": "2026-01-01",
+    "owner": "revenue_operations",
+    "body": "Contact the billing team with the appointment reference to request an invoice correction."
   }
 ]
 

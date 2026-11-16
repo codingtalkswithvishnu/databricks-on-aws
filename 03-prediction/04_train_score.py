@@ -1,64 +1,100 @@
 # Databricks notebook source
 # Requires compatible Spark ML and MLflow; no live execution claimed.
-features = spark.sql("""
-    SELECT customer_id,
-           COUNT(*) AS orders_count,
-           AVG(order_total) AS avg_spend,
-           MAX(churned) AS churned
-    FROM analytics.sales.orders
-    GROUP BY customer_id
+import sys
+from pathlib import Path
+from pyspark.sql import functions as F
+
+candidates = [Path.cwd() / "shared", Path.cwd().parent / "shared"]
+module_root = next((p for p in candidates if (p / "healthcare.py").is_file()), None)
+if module_root is None:
+    raise RuntimeError("Open the complete companion project")
+sys.path.insert(0, str(module_root))
+from healthcare import FEATURE_CUTOFF, SCORE_START
+
+history = spark.table("analytics.operations.appointment_history")
+labels = spark.table("analytics.ml.attendance_outcomes")
+assert history.filter(F.col("visit_date") >= F.lit(FEATURE_CUTOFF).cast("date")).count() == 0
+assert labels.count() == labels.select("patient_id").distinct().count() == 20
+assert labels.filter(
+    (F.col("scheduled_date") < F.lit(FEATURE_CUTOFF).cast("date"))
+    | (F.col("observed_date") <= F.col("scheduled_date"))
+).count() == 0
+
+historical_features = spark.sql(f"""
+    SELECT patient_id,
+           COUNT(*) AS prior_visits,
+           SUM(1 - attended) AS prior_missed_visits,
+           AVG(lead_days) AS avg_lead_days
+    FROM analytics.operations.appointment_history
+    WHERE visit_date < DATE '{FEATURE_CUTOFF}'
+    GROUP BY patient_id
 """)
-inconsistent = spark.sql("""
-    SELECT customer_id
-    FROM analytics.sales.orders
-    GROUP BY customer_id
-    HAVING MIN(churned) <> MAX(churned)
-""")
-assert inconsistent.count() == 0
+features = (
+    historical_features.join(labels.select("patient_id", "no_show"), "patient_id")
+    .withColumn("feature_cutoff", F.lit(FEATURE_CUTOFF).cast("date"))
+)
 assert features.count() == 20
 features.write.format("delta").mode("overwrite").saveAsTable(
-    "analytics.customers.churn_features"
+    "analytics.ml.appointment_features"
 )
 
 # COMMAND ----------
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
-from pyspark.sql import functions as F
 import mlflow
 
-training = VectorAssembler(
-    inputCols=["orders_count", "avg_spend"],
-    outputCol="features",
-).transform(spark.table("analytics.customers.churn_features"))
+predictor_names = ["prior_visits", "prior_missed_visits", "avg_lead_days"]
+assembler = VectorAssembler(inputCols=predictor_names, outputCol="features")
+training = assembler.transform(spark.table("analytics.ml.appointment_features"))
 
-# A reproducible fixture split: C005, C010, C015, C020 are held out.
-number = F.regexp_extract("customer_id", r"(\d+)$", 1).cast("int")
+# Fixed patient split for this learning fixture.
+number = F.regexp_extract("patient_id", r"(\d+)$", 1).cast("int")
 train = training.filter(number % 5 != 0)
 test = training.filter(number % 5 == 0)
 assert train.count() == 16 and test.count() == 4
-assert train.select("churned").distinct().count() == 2
-assert test.select("churned").distinct().count() == 2
+assert train.select("no_show").distinct().count() == 2
+assert test.select("no_show").distinct().count() == 2
 
-with mlflow.start_run(run_name="cedar-retail-fixture"):
-    model = LogisticRegression(
-        featuresCol="features", labelCol="churned"
-    ).fit(train)
+with mlflow.start_run(run_name="northstar-attendance-fixture") as run:
+    model = LogisticRegression(featuresCol="features", labelCol="no_show").fit(train)
     predictions = model.transform(test)
-    auc = BinaryClassificationEvaluator(
-        labelCol="churned"
-    ).evaluate(predictions)
+    auc = BinaryClassificationEvaluator(labelCol="no_show").evaluate(predictions)
     mlflow.log_metric("fixture_test_auc", auc)
-    mlflow.log_param("fixture_customers", 20)
+    mlflow.log_param("fixture_patients", 20)
+    mlflow.log_param("feature_cutoff", FEATURE_CUTOFF)
+    model_run_id = run.info.run_id
     print("Held-out fixture AUC:", auc)
 
 # COMMAND ----------
-scored = model.transform(training)
-at_risk = (
-    scored.filter(F.col("prediction") == 1.0)
-    .select("customer_id", "avg_spend", "prediction")
+from pyspark.ml.functions import vector_to_array
+
+upcoming = spark.table("analytics.operations.appointments")
+last_observed = labels.agg(F.max("observed_date")).first()[0]
+assert upcoming.filter(
+    (F.col("scheduled_date") <= F.lit(last_observed))
+    | (F.col("scheduled_date") < F.lit(SCORE_START).cast("date"))
+).count() == 0
+predictors = spark.table("analytics.ml.appointment_features").select(
+    "patient_id", *predictor_names
 )
-at_risk.write.format("delta").mode("overwrite").saveAsTable(
-    "analytics.gold.at_risk"
+score_input = upcoming.join(predictors, "patient_id", "left")
+assert score_input.count() == 3
+assert score_input.filter(F.col("prior_visits").isNull()).count() == 0
+
+scored = (
+    model.transform(assembler.transform(score_input))
+    .withColumn("missed_appointment_probability", vector_to_array("probability")[1])
+    .withColumn("feature_cutoff", F.lit(FEATURE_CUTOFF).cast("date"))
+    .withColumn("model_run_id", F.lit(model_run_id))
+    .select("appointment_id", "patient_id", "facility_id", "scheduled_date",
+            "prediction", "missed_appointment_probability", "feature_cutoff", "model_run_id")
 )
-assert at_risk.select("customer_id").distinct().count() == at_risk.count()
+assert scored.count() == scored.select("appointment_id").distinct().count() == 3
+scored.write.format("delta").mode("overwrite").saveAsTable(
+    "analytics.gold.appointment_scores"
+)
+review_queue = scored.filter(F.col("prediction") == 1.0)
+review_queue.write.format("delta").mode("overwrite").saveAsTable(
+    "analytics.gold.outreach_review_queue"
+)
