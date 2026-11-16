@@ -151,7 +151,7 @@ def main():
             assert len(overlap) == 4 and sum(r.dimension_matches == 2 for r in overlap) == 2
 
             # Check the landed-payload parsing/aggregate stage, not Kinesis access.
-            events = [json.loads(line) for line in (ROOT / 'sample-data/events.jsonl').read_text(encoding='utf-8').splitlines()]
+            events = [json.loads(line) for line in (ROOT / 'sample-data/events.jsonl').read_text(encoding='utf-8').splitlines() if line.strip()]
             event_table = 'book_bronze.appointment_events'
             def publish_payloads(messages):
                 spark.createDataFrame([(json.dumps(row).encode(),) for row in messages], 'data BINARY').write.format('delta').mode('overwrite').saveAsTable(event_table)
