@@ -20,6 +20,13 @@ APPOINTMENT_SCHEMA = "appointment_id STRING, patient_id STRING, scheduled_date S
 UPDATE_SCHEMA = APPOINTMENT_SCHEMA + ", source_version STRING"
 HISTORY_SCHEMA = "patient_id STRING, visit_id STRING, visit_date STRING, lead_days STRING, attended STRING"
 OUTCOME_SCHEMA = "patient_id STRING, appointment_id STRING, facility_id STRING, scheduled_date STRING, observed_date STRING, no_show STRING"
+CSV_COLUMNS = {
+    "appointments.csv": tuple(field.split()[0] for field in APPOINTMENT_SCHEMA.split(",")),
+    "appointment_updates.csv": tuple(field.split()[0] for field in UPDATE_SCHEMA.split(",")),
+    "appointment_history.csv": tuple(field.split()[0] for field in HISTORY_SCHEMA.split(",")),
+    "attendance_outcomes.csv": tuple(field.split()[0] for field in OUTCOME_SCHEMA.split(",")),
+    "tickets.csv": ("ticket_id", "message", "expected_category"),
+}
 NOT_FOUND = "Not found in approved policies"
 STOP = {"a", "an", "the", "is", "are", "what", "how", "of", "to", "in",
         "for", "our", "and", "can", "i", "it", "my", "does", "do"}
@@ -58,8 +65,22 @@ def model_json(value):
         raise ValueError("Model must return unambiguous valid JSON") from None
 
 def records(name):
-    with (ROOT / "sample-data" / name).open(encoding="utf-8", newline="") as stream:
-        return list(csv.DictReader(stream))
+    """Load a known fixture only after its file structure matches the contract."""
+    if name not in CSV_COLUMNS:
+        raise ValueError("Unknown CSV fixture")
+    try:
+        with (ROOT / "sample-data" / name).open(encoding="utf-8", newline="") as stream:
+            reader = csv.DictReader(stream, strict=True)
+            if reader.fieldnames != list(CSV_COLUMNS[name]):
+                raise ValueError("CSV header does not match the ordered source contract: " + name)
+            result = []
+            for row in reader:
+                if None in row or any(value is None for value in row.values()):
+                    raise ValueError("CSV field count does not match its header: " + name)
+                result.append(row)
+            return result
+    except csv.Error:
+        raise ValueError("Malformed CSV quoting: " + name) from None
 
 def iso_date(value):
     if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):

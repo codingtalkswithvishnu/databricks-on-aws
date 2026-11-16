@@ -1,13 +1,18 @@
 # Databricks notebook source
 # Requires compatible Spark ML and MLflow; no live execution claimed.
 import sys
+import os
 from pathlib import Path
 from pyspark.sql import functions as F
 
-candidates = [Path.cwd() / "shared", Path.cwd().parent / "shared"]
+configured_root = (dbutils.widgets.getAll().get("book_root") if "dbutils" in globals() else None) or os.environ.get("DATABRICKS_BOOK_ROOT")
+if configured_root and not Path(configured_root).is_absolute():
+    raise RuntimeError("DATABRICKS_BOOK_ROOT must be an absolute project directory")
+candidates = ([Path(configured_root) / "shared"] if configured_root else
+              [Path.cwd() / "shared", Path.cwd().parent / "shared"])
 module_root = next((p for p in candidates if (p / "healthcare.py").is_file()), None)
 if module_root is None:
-    raise RuntimeError("Open the complete companion project")
+    raise RuntimeError("Set DATABRICKS_BOOK_ROOT to the complete project directory")
 sys.path.insert(0, str(module_root))
 from healthcare import FEATURE_CUTOFF, SCORE_START
 
@@ -63,6 +68,11 @@ with mlflow.start_run(run_name="northstar-attendance-fixture") as run:
     mlflow.log_metric("fixture_test_auc", auc)
     mlflow.log_param("fixture_patients", 20)
     mlflow.log_param("feature_cutoff", FEATURE_CUTOFF)
+    mlflow.log_param("predictor_order", ",".join(predictor_names))
+    mlflow.log_param("estimator", "LogisticRegression")
+    mlflow.log_param("max_iter", model.getMaxIter())
+    mlflow.log_param("reg_param", model.getRegParam())
+    mlflow.log_param("prediction_threshold", model.getThreshold())
     model_run_id = run.info.run_id
     print("Held-out fixture AUC:", auc)
 

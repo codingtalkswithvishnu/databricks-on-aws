@@ -2,14 +2,17 @@
 import ast
 import http.client
 import io
+import importlib.util
 import json
 import os
 import sys
+import tempfile
 import unittest
 import urllib.error
 import urllib.request
 from email.message import Message
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "shared"))
@@ -18,10 +21,85 @@ from genie_contract import summarize_genie_message
 from search_contract import policy_hits, POLICY_FIELDS
 
 class ContractChecks(unittest.TestCase):
+    def test_notebook_project_root_is_explicit_and_fails_closed(self):
+        paths = ['00-start-here/00_setup.py', '01-lakehouse/02_clean.py',
+                 '01-lakehouse/03_incremental_updates.py', '01-lakehouse/04_fhir_mapping.py',
+                 '03-prediction/04_train_score.py', '06-integrations/02_genie_conversation.py',
+                 '06-integrations/03_managed_policy_search.py', '06-integrations/04_compare_providers.py',
+                 '06-integrations/05_classify_tickets.py']
+        with tempfile.TemporaryDirectory() as directory:
+            for path in paths:
+                code = (ROOT / path).read_text(encoding='utf-8').split('sys.path.insert(0, str(module_root))', 1)[0]
+                # Exercise the actual path bootstrap without importing its
+                # unrelated Spark dependency into the standard-library suite.
+                code = '\n'.join(line for line in code.splitlines() if not line.startswith('from pyspark.'))
+                with self.subTest(path=path), patch.object(Path, 'cwd', return_value=Path(directory)):
+                    with patch.dict(os.environ, {'DATABRICKS_BOOK_ROOT': str(ROOT)}):
+                        namespace = {}
+                        exec(compile(code, path, 'exec'), namespace)
+                        self.assertEqual(namespace['module_root'], ROOT / 'shared')
+                    for bad in [str(Path(directory) / 'missing'), 'relative-project']:
+                        with patch.dict(os.environ, {'DATABRICKS_BOOK_ROOT': bad}), self.assertRaises(RuntimeError):
+                            exec(compile(code, path, 'exec'), {})
+                    widget = SimpleNamespace(widgets=SimpleNamespace(getAll=lambda: {'book_root': str(ROOT)}))
+                    with patch.dict(os.environ, {'DATABRICKS_BOOK_ROOT': str(Path(directory) / 'wrong')}):
+                        namespace = {'dbutils': widget}
+                        exec(compile(code, path, 'exec'), namespace)
+                        self.assertEqual(namespace['module_root'], ROOT / 'shared')
+
+    def test_cli_source_failure_is_structured_and_nonzero(self):
+        for directory, name, operation in [('04-assistant', 'assistant', 'answer'),
+                                            ('05-agent', 'agent', 'agent')]:
+            with self.subTest(cli=name):
+                path = ROOT / directory / (name + '.py')
+                spec = importlib.util.spec_from_file_location('fixture_' + name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                output = io.StringIO()
+                with patch.object(sys, 'argv', [str(path), '--question', 'rescheduling notice']), \
+                        patch.object(module, operation, side_effect=FileNotFoundError('private/local/path')), \
+                        patch.object(sys, 'stdout', output):
+                    status = module.main()
+                self.assertEqual(status, 1)
+                result = json.loads(output.getvalue())
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(result['error_type'], 'FileNotFoundError')
+                self.assertNotIn('private/local/path', output.getvalue())
+
+    def assert_csv_rejected(self, payload):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'sample-data').mkdir()
+            (root / 'sample-data/appointments.csv').write_text(payload, encoding='utf-8')
+            with patch.object(healthcare, 'ROOT', root), self.assertRaises(ValueError):
+                healthcare.records('appointments.csv')
+
+    def test_source_header_is_a_batch_contract(self):
+        headers = [
+            'appointment_id,scheduled_date,facility_id',
+            'appointment_id,patient_id,scheduled_date,facility_id,extra',
+            'appointment_id,patient_id,scheduled_date,patient_id',
+            'patient_id,appointment_id,scheduled_date,facility_id',
+        ]
+        for header in headers:
+            with self.subTest(header=header):
+                self.assert_csv_rejected(header + '\nA001,P001,2026-03-10,FAC01\n')
+
+    def test_structurally_malformed_csv_is_not_a_valid_appointment(self):
+        header = 'appointment_id,patient_id,scheduled_date,facility_id\n'
+        for row in ['A001,P001,2026-03-10,FAC01,extra\n',
+                    'A001,P001,2026-03-10\n', 'A001,"P001,2026-03-10,FAC01\n']:
+            with self.subTest(row=row):
+                self.assert_csv_rejected(header + row)
+
     def test_appointment_result_and_rejection_evidence(self):
         source = healthcare.records("appointments.csv")
         clean, invalid, duplicates = healthcare.clean_appointments(source)
         self.assertEqual((len(source), len(clean), len(invalid), duplicates), (6,3,2,1))
+        self.assertEqual({(r['appointment_id'], r['patient_id'], r['scheduled_date'], r['facility_id']) for r in clean},
+                         {('A001','P001','2026-03-10','FAC01'),
+                          ('A002','P002','2026-03-10','FAC02'),
+                          ('A006','P006','2026-03-10','FAC03')})
         self.assertEqual(healthcare.appointment_summary(), {"FAC01":1,"FAC02":1,"FAC03":1})
         self.assertEqual({row["rejection_reason"] for row in invalid},
                          {"missing appointment_id", "invalid scheduled_date"})

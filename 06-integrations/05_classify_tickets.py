@@ -1,11 +1,16 @@
 # Databricks notebook source
 # Optional configured cloud exercise; no live execution claimed.
 import sys
+import os
 from pathlib import Path
-candidates = [Path.cwd() / "shared", Path.cwd().parent / "shared"]
+configured_root = (dbutils.widgets.getAll().get("book_root") if "dbutils" in globals() else None) or os.environ.get("DATABRICKS_BOOK_ROOT")
+if configured_root and not Path(configured_root).is_absolute():
+    raise RuntimeError("DATABRICKS_BOOK_ROOT must be an absolute project directory")
+candidates = ([Path(configured_root) / "shared"] if configured_root else
+              [Path.cwd() / "shared", Path.cwd().parent / "shared"])
 module_root = next((p for p in candidates if (p / "healthcare.py").is_file()), None)
 if module_root is None:
-    raise RuntimeError("Open the complete companion project")
+    raise RuntimeError("Set DATABRICKS_BOOK_ROOT to the complete project directory")
 sys.path.insert(0, str(module_root))
 
 # COMMAND ----------

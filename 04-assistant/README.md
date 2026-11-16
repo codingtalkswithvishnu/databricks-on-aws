@@ -11,6 +11,13 @@ The first answer cites P001 and the fictional 24-hour notice rule. The second
 returns an unanswered result. P002 covers referral intake; P003 billing support.
 The default is lexical retrieval with an extractive answer; no model is called.
 
+Retrieval is not a semantic answerability check. A question about a rescheduling
+fee can retrieve the notice policy even though that passage states no fee. Treat
+that response as insufficient evidence; the local extractor does not classify
+every unsupported question. Test this separately from the parking case, which
+retrieves no eligible passage. Missing or unreadable source files return a
+sanitized failed JSON result and exit status 1, rather than an unanswered result.
+
 Select only approved policies effective by POLICY_AS_OF = 2026-03-01. Keep the
 current eligible version per article ID and reject ambiguous versions sharing
 an effective date. Preserve ID, version, effective date and owner in the result.

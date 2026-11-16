@@ -19,7 +19,7 @@ The manuscript, cover, EPUB, private reviews and credentials are outside this re
 | 4 | 01-lakehouse/01_ingest.py | 6 raw appointments, 40 historical visits, 20 later outcomes; 3 tickets and 3 selected policies. |
 | 5 | 01-lakehouse/02_clean.py | 3 accepted appointments, 2 rejected arrivals, 1 identical duplicate; typed history/outcomes. |
 | 6–7 | 02-analytics/03_report.py | Stable operations.appointments view and FAC01/FAC02/FAC03 counts of 1 each. |
-| 8 | 06-integrations/README.md, events.jsonl | Optional isolated three-event Kinesis exercise. |
+| 8 | 06-integrations/06_checkin_events.py, events.jsonl | Optional Kinesis landing and UTC/tolerant timestamp aggregate checks. |
 | 9 | 03-prediction/04_train_score.py | 20 dated feature/label rows, 16/4 split, observed metric/run reference, 3 March scores and human review queue. |
 | 10–12 | 06-integrations/README.md | Identity, network, storage and object-access evidence. |
 | 13 | databricks.yml, .github/workflows/local-checks.yml | Four-task ingest → clean → report → predict job and separate local CI. |
@@ -28,6 +28,7 @@ The manuscript, cover, EPUB, private reviews and credentials are outside this re
 | 17 | 06-integrations/04_compare_providers.py | Same fixed cases through two explicitly selected compatible model endpoints. |
 | 18–19 | Earlier stages, tools/check_local.py, tools/check_spark.py | Evidence scorecard and reproducible healthcare capstone. |
 | 20–24 | 06-integrations/README.md, 05-agent | Ownership, products, agent limits, qualified case studies and recovery evidence. |
+| 21 | 02-analytics/04_dimension_history.sql | Read-only temporal lookup with missing/overlapping dimension checks. |
 | Appendix D | 01-lakehouse/03_incremental_updates.py, 04_fhir_mapping.py | Separate versioned-MERGE and nested R4-shaped source demonstrations. |
 
 All main table names belong to analytics. The gold facility report is a fixed
@@ -56,7 +57,24 @@ appointment-write tool or clinical model in this application.
 
 With compatible PySpark and Java, `python tools/check_spark.py` exercises actual
 DataFrame transformations without table writes. See [VALIDATION.md](VALIDATION.md)
-for the checked local runtimes and 31 local / 14 Spark results.
+for the checked local runtimes and 35 local / 15 Spark results.
+
+For an isolated **Linux** integration run with Python 3.12 and Java 21:
+
+```shell
+python -m pip install -r tools/requirements-pipeline.txt
+python tools/check_spark.py
+python tools/check_pipeline.py
+```
+
+The last command resolves Delta's public Maven dependencies, runs the main
+notebooks and isolated nested/update examples against real local Delta,
+fits/scores Spark ML, and records file-backed MLflow metrics. It also checks the
+dimensional SQL, landed-event parsing and selected failures before publication.
+It uses a temporary single-catalog namespace instead of Unity Catalog and
+creates no AWS resources. The result is pipeline-check-results.json, also
+retained by the separate GitHub Actions job. Review its exact scope before
+treating a green Linux run as evidence for a Databricks deployment.
 
 Cloud source notebooks require an approved disposable analytics catalog,
 schema/table privileges, compatible Spark ML/MLflow compute and the complete
@@ -64,6 +82,14 @@ project. Open/import the project together; `%run` and shared module paths matter
 The four-task bundle uses an explicit approved existing cluster. From a signed-in
 CLI environment, validate, deploy and run with your approved cluster variable;
 the book explains each evidence boundary.
+
+The bundle passes its deployed workspace.file_path as the book_root notebook
+parameter. Shared-module bootstraps prefer this parameter, then the explicit
+DATABRICKS_BOOK_ROOT absolute project-directory setting, then the supported
+interactive working-directory fallback. An explicitly wrong path fails rather
+than selecting another checkout. The widget lookup requires a runtime with
+dbutils.widgets.getAll support. The job limits its own concurrent runs to one;
+other writers still need separate coordination.
 
 Quality preflight checks all inputs before the four output writes. Those writes
 are separate Delta commits. A partial failure needs reconciliation rather than

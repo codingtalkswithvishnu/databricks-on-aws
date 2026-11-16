@@ -7,29 +7,38 @@ resources:
   jobs:
     healthcare_refresh:
       name: northstar-healthcare-learning
+      max_concurrent_runs: 1
       tasks:
         - task_key: ingest
           existing_cluster_id: ${var.cluster_id}
           notebook_task:
             notebook_path: ./01-lakehouse/01_ingest.py
+            base_parameters:
+              book_root: ${workspace.file_path}
         - task_key: clean
           depends_on:
             - task_key: ingest
           existing_cluster_id: ${var.cluster_id}
           notebook_task:
             notebook_path: ./01-lakehouse/02_clean.py
+            base_parameters:
+              book_root: ${workspace.file_path}
         - task_key: report
           depends_on:
             - task_key: clean
           existing_cluster_id: ${var.cluster_id}
           notebook_task:
             notebook_path: ./02-analytics/03_report.py
+            base_parameters:
+              book_root: ${workspace.file_path}
         - task_key: predict
           depends_on:
             - task_key: report
           existing_cluster_id: ${var.cluster_id}
           notebook_task:
             notebook_path: ./03-prediction/04_train_score.py
+            base_parameters:
+              book_root: ${workspace.file_path}
 targets:
   dev:
     default: true

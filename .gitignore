@@ -6,4 +6,5 @@ __pycache__/
 *.epub
 *.docx
 *cover*
+pipeline-check-results.json
 

@@ -1,0 +1,6 @@
+# Isolated open-source Linux verifier, not a Databricks Runtime specification.
+pyspark==4.0.1
+delta-spark==4.0.1
+mlflow-skinny==3.5.1
+numpy==2.2.6
+scipy==1.15.3

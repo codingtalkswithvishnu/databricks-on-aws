@@ -26,6 +26,14 @@ def latest_updates(prepared):
 
 
 def validate_target(target, prepared):
+    if dict(target.dtypes).get("source_version") != "int":
+        raise ValueError("Target source_version must use the accepted integer type")
+    checked = check_appointment_rows(target)
+    if checked.filter(F.col("rejection_reason").isNotNull()).limit(1).count():
+        raise ValueError("Target appointment fields do not satisfy the accepted contract")
+    for key in ["appointment_id", "patient_id", "facility_id"]:
+        if target.filter(F.col(key) != F.regexp_replace(key, r"^\s+|\s+$", "")).limit(1).count():
+            raise ValueError("Target keys must already have their accepted canonical representation")
     if target.filter(F.col("appointment_id").isNull() | F.col("source_version").isNull()
                      | (F.col("source_version") <= 0)).limit(1).count():
         raise ValueError("Target key/version contract is invalid")

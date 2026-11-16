@@ -13,6 +13,10 @@ def main():
     args = parser.parse_args()
     try:
         result = agent(args.question, model_call=chat if args.live else None)
+    except OSError as error:
+        print(json.dumps({"status": "failed", "error": "Local source files could not be read",
+                          "error_type": type(error).__name__}))
+        return 1
     except (ValueError, RuntimeError, KeyError, IndexError, TypeError) as error:
         print(json.dumps({"status": "failed", "error": str(error)}))
         return 1

@@ -19,6 +19,9 @@ administrative AI, not clinical prediction or an appointment-changing system.
 
 Appointments count scheduled bookings, not patients or completed encounters.
 The missing appointment key and invalid date each produce one rejection.
+The fixture loader first requires the exact ordered header, valid CSV quoting
+and the declared field count. A structural file failure stops loading; an empty
+field in a correctly shaped row reaches the declared row-quality rules.
 Unknown facilities and missing patient IDs also reject. Conflicting valid
 payloads under one appointment key stop the batch; an arbitrary winner is invalid.
 
@@ -56,3 +59,9 @@ Record the code revision, compute/runtime/access mode, workload identity,
 namespace approval, source definitions, expected results and spending owner.
 Run the numbered checkpoints in order. Preserve source snapshots and actual
 output/run references so failed stages can be diagnosed and recovered.
+
+If the notebook working directory differs from the complete project, configure
+DATABRICKS_BOOK_ROOT with its absolute workspace-files directory. Deployed bundle
+tasks receive book_root from workspace.file_path instead. The root contains
+shared and sample-data; it is a file path, not a catalog or credential. Every
+task needs its effective configuration, and a wrong configured root fails fast.

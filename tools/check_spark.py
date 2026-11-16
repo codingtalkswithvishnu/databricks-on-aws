@@ -152,6 +152,18 @@ class SparkQualityChecks(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_target(target, conflict)
 
+    def test_invalid_target_fields_are_rejected_before_merge(self):
+        original = records("appointments.csv")[0]
+        _, target, _ = prepare_appointments(self.appointments([original]))
+        target = target.withColumn("source_version", F.lit(1))
+        prepared = prepare_updates(self.frame([{**original, "source_version":"2"}], UPDATE_SCHEMA))
+        for field, value in [("appointment_id", ""), ("appointment_id", "\t"),
+                             ("appointment_id", " A001"), ("patient_id", None),
+                             ("facility_id", "FAC99"), ("scheduled_date", None),
+                             ("source_version", 0), ("source_version", None)]:
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                validate_target(target.withColumn(field, F.lit(value)), prepared)
+
     def test_nested_bundle_mapping_matches_the_csv_contract(self):
         payload = (DATA_ROOT / "sample-data" / "appointments_bundle.json").read_text(encoding="utf-8")
         mapped = extract_appointments(self.frame([{"payload":payload}], "payload STRING"))

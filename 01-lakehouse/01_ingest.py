@@ -1,4 +1,11 @@
 # Databricks notebook source
+import os
+if "dbutils" in globals():
+    project_root = dbutils.widgets.getAll().get("book_root")
+    if project_root:
+        os.environ["DATABRICKS_BOOK_ROOT"] = project_root
+
+# COMMAND ----------
 # MAGIC %run ../00-start-here/00_setup
 
 # COMMAND ----------
