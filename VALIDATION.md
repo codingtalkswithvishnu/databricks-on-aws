@@ -67,3 +67,25 @@ path, operational cost or resource-retirement behavior is established by the
 credential-free checks. Local Delta is not Unity Catalog. Model metrics are not
 artifact reload or registry validation. The synthetic healthcare fixture and
 three policies are teaching contracts, not clinical or production validation.
+
+
+## Browser analytics supplement checks — 18 November 2026
+
+The core pipeline code and fixture values are unchanged. The new
+`07-browser-analytics/` assets and `tools/check_browser_analytics.py` were checked
+locally with CPython 3.12.16. The existing 35 stdlib tests pass. The new SQL sample
+checks pass in SQLite (seven checks) and actual local Spark 4.0.1 on Temurin
+21.0.13 (eight checks, including notebook producer/SQL temporary-view consumer).
+
+The checks execute raw import counts, lookup uniqueness, the 1/1/1 aggregate,
+bound parameters including an SQL-shaped literal, the isolated 3-versus-4
+COUNT/SUM example, Genie reference SQL, and the intentional missing-column error.
+They confirm that hypothetical and negative exercises leave the source aggregate
+unchanged. Only catalog/schema qualification is substituted for local SQL views.
+The new source SQL and JSON match their complete examples in the expanded book.
+
+`.github/workflows/browser-analytics.yml` checks SQLite on Python 3.10/3.14 and
+actual Spark SQL on Python 3.12/Java 21. Its exact-commit GitHub execution must be
+inspected after the authorized push; adding a workflow is not evidence it ran.
+These local checks do not establish signed-in Databricks UI behavior, Unity
+Catalog authorization, live AI responses, or an AWS deployment.

@@ -99,3 +99,16 @@ disposable tables; they are not an operational incremental ingestion strategy.
 Optional model lifecycle, feature-table and AutoML recipes are in 03-prediction/
 05–07. Optional integrations have separate prerequisites and are excluded from
 the default job. No signed-in Databricks/AWS execution is claimed here.
+
+
+## Browser analytics supplement — November 2026
+
+[07-browser-analytics](07-browser-analytics/README.md) supplies original Northstar
+CSV/JSON inspection, SQL Editor queries, named parameters, SUM-versus-COUNT,
+Genie reference queries, and an intentional error exercise for the expanded
+book. It uses Databricks on AWS interface guidance and keeps Free Edition as an
+optional supported-feature rehearsal. The existing pipeline and fixture contracts
+remain unchanged. Run `python tools/check_browser_analytics.py` locally; its
+`--spark` route and the separate browser-analytics workflow check actual Spark SQL.
+Live product clicks, Unity Catalog permissions, and AI answers need the actual
+workspace and are not inferred from local tests.
